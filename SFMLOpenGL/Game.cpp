@@ -162,9 +162,9 @@ Game::Game(sf::ContextSettings settings) :
 	{
 
 		rampsObjects[i] = new GameObject();
-		rampsObjects[i]->setPosition(vec3(xpositionRamps3, ypositionRamps2, 0.0f));
-		xpositionRamps3 += 1.0f;
-		ypositionRamps3 += 0.5f;
+		rampsObjects[i]->setPosition(vec3(xpositionRamps3, ypositionRamps3, 0.0f));
+		xpositionRamps3 += 3.0f;
+		ypositionRamps3 += 3.1f;
 	}
 
 	//set up the player

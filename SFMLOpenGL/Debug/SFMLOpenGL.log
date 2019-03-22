@@ -1,2 +1,7 @@
-﻿  Game.cpp
-  SFMLOpenGL.vcxproj -> C:\Users\student\Desktop\New folder (2)\Game-Craft-Game\Debug\SFMLOpenGL.exe
+﻿  Main.cpp
+  GameObject.cpp
+  Game.cpp
+  Easing.cpp
+  Generating Code...
+  stb_image.c
+  SFMLOpenGL.vcxproj -> C:\Users\student\Desktop\New folder (3)\Game-Craft-Game\Debug\SFMLOpenGL.exe
