@@ -38,11 +38,11 @@ public:
 	void run();
 	
 private:
-	GameObject* game_object[50];
+	GameObject* game_object[100];
 	GameObject* playerObject;
-	GameObject* obstacleObject[3];
-	GameObject* movingobstacleObject[3];
-	GameObject* rampsObjects[7];
+	GameObject* obstacleObject[5];
+	GameObject* movingobstacleObject[5];
+	GameObject* rampsObjects[15];
 	GameObject* objective[2];
 	RenderWindow window;
 	sf::Texture texture;
