@@ -122,8 +122,16 @@ Game::Game(sf::ContextSettings settings) :
 	game_object[48]->setPosition(vec3(-4.0f, -2.8, 0.0f));
 	game_object[55] = new GameObject();
 	game_object[55]->setPosition(vec3(-4.0f, -2.8, 0.0f));
-	game_object[56] = new GameObject();
-	game_object[56]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[63] = new GameObject();
+	game_object[64]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[72] = new GameObject();
+	game_object[73]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[85] = new GameObject();
+	game_object[86]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[91] = new GameObject();
+	game_object[91]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	
+
 
 	//loop to set up the ojects ramp
 	for (int i = 0; i < 3; i++)
@@ -183,7 +191,7 @@ Game::Game(sf::ContextSettings settings) :
 	}
 	//loop to set up moving obstacles
 	float posmoveX{ 27.5f };
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 6; i++)
 	{
 
 		movingobstacleObject[i] = new GameObject();
@@ -525,7 +533,7 @@ void Game::update()
 	}
 	for (int i = 0; i < 100; i++)
 	{
-		for (int j = 0; j < 7; j++)
+		for (int j = 0; j < 16; j++)
 		{
 			if (playerObject->getPosition().x + 1 >= game_object[i]->getPosition().x - 1 &&
 				game_object[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
