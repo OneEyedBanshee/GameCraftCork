@@ -1,0 +1,6 @@
+﻿  Main.cpp
+  Game.cpp
+c:\users\student\desktop\new folder\gameplaypro-project-1\sfmlopengl\game.cpp(874): warning C4305: '=': truncation from 'double' to 'float'
+  Generating Code...
+  stb_image.c
+  SFMLOpenGL.vcxproj -> C:\Users\student\Desktop\New folder\GameplayPro-Project-1\Debug\SFMLOpenGL.exe
