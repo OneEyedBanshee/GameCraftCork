@@ -66,8 +66,8 @@ Font font;						// Game font
 sf::SoundBuffer m_audioBuffer;
 sf::Music		m_music;
 sf::Sound		m_soundEffect;
-bool music_Loaded = true;
-bool sound_Loaded = true;
+bool			music_Loaded = true;
+bool			sound_Loaded = true;
 
 Game::Game() : 
 	window(VideoMode(800, 600), 
