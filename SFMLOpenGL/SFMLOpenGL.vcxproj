@@ -161,6 +161,7 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Matrix3.h" />
+    <ClInclude Include="objloader.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="tinyc2.h" />
     <ClInclude Include="Vector3.h" />
@@ -170,6 +171,7 @@
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="objloader.cpp" />
     <ClCompile Include="stb_image.c" />
   </ItemGroup>
   <ItemGroup>

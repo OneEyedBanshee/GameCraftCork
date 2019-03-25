@@ -1,6 +1,7 @@
 #include <Game.h>
 #include <Cube.h>
 #include <Easing.h>
+#include <objloader.h>
 
 // Helper to convert Number to String for HUD
 template <typename T>
@@ -330,6 +331,12 @@ void Game::initialize()
 	GLint isLinked = 0;
 
 	if (!(!glewInit())) { DEBUG_MSG("glewInit() failed"); }
+
+	// Read the .obj file
+	std::vector<glm::vec3> cube_vertices;
+	std::vector<glm::vec2> cube_uvs;
+	std::vector<glm::vec3> cube_normals; // Won't be used at the moment.
+	bool res = loadOBJ("cube.obj", cube_vertices, cube_uvs, cube_normals);
 
 	// Copy UV's to all faces
 	for (int i = 1; i < 6; i++)
