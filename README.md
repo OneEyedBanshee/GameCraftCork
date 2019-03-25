@@ -1,6 +1,7 @@
-GameplayPro-Project-1
-David Whiteford
-Project 1 , platformer involving cubes
-Uses OpenGL ,SFML , C++
+Cork Gamejam Game
 
-c00204740@itcarlow.ie
+David Whiteford C00204740@itcarlow.ie
+Craig Johnston  C00185208@itcarlow.ie
+
+Platformer involving cubes
+Uses OpenGL ,SFML , C++
