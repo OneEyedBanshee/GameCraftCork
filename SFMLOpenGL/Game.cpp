@@ -87,7 +87,7 @@ Game::Game(sf::ContextSettings settings) :
 	if (!m_audioBuffer.loadFromFile("sound.wav"))
 	sound_Loaded = false;	
 	
-	if (!m_audioBuffer.loadFromFile("music.ogg"))
+	if (!m_music.openFromFile("music.ogg"))
 	music_Loaded = false;
 
 	//set up the array of ground / stationary objects and their positions
