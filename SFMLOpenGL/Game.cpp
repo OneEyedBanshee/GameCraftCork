@@ -61,7 +61,12 @@ modelObjective;
 
 Font font;						// Game font
 
-
+//Audio
+sf::SoundBuffer m_audioBuffer;
+sf::Music		m_music;
+sf::Sound		m_soundEffect;
+bool music_Loaded = true;
+bool sound_Loaded = true;
 
 Game::Game() : 
 	window(VideoMode(800, 600), 
@@ -78,6 +83,13 @@ Game::Game(sf::ContextSettings settings) :
 
 	//blocks are 2.0 wide
 {
+	//Load audio files
+	if (!m_audioBuffer.loadFromFile("sound.wav"))
+	sound_Loaded = false;	
+	
+	if (!m_audioBuffer.loadFromFile("music.ogg"))
+	music_Loaded = false;
+
 	//set up the array of ground / stationary objects and their positions
 
 	//set up the objects
@@ -226,6 +238,9 @@ void Game::run()
 	float rotation = 0.01f;
 	float start_value = 0.0f;
 	float end_value = 1.0f;
+
+	if (sound_Loaded) { m_soundEffect.setBuffer(m_audioBuffer); }
+	if (music_Loaded) { m_music.play(); }	
 
 	while (isRunning) {
 
@@ -558,6 +573,7 @@ void Game::update()
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
 		{
 			m_moveState = MoveStates::Jumping;
+			if (sound_Loaded) { m_soundEffect.play(); }
 		}
 		break;
 		//jumping state
