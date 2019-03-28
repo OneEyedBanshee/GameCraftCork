@@ -23,12 +23,16 @@ private:
 	GLfloat uv[ARRAY_SIZE(uvs)];
 	GLfloat index[ARRAY_SIZE(indices)];
 	vec3 position;
+	float rotation = 0.f;
 public:
 	GameObject();
 	~GameObject();
 
 	vec3 getPosition();
 	void setPosition(vec3 position);
+
+	float getRotation();
+	void setRotation(float rotation);
 
 	// Returns the first element of the array
 	GLfloat* getVertex();
