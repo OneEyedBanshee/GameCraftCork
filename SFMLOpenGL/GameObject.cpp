@@ -23,6 +23,9 @@ GameObject::~GameObject()
 vec3 GameObject::getPosition() { return this->position; }
 void GameObject::setPosition(vec3 position) { this->position = position; }
 
+float GameObject::getRotation() { return this->rotation; }
+void GameObject::setRotation(float rotation) { this->rotation = rotation; }
+
 // Returns the first element of the Vertex array
 GLfloat* GameObject::getVertex() { return this->vertex; }
 // 3 Vertices

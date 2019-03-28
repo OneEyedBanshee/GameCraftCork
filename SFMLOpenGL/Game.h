@@ -11,7 +11,6 @@
 #include <GL/glew.h>
 #include <GL/wglew.h>
 
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -22,9 +21,10 @@
 #include <Debug.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+//#include <stb_image.h>
 
 #include <GameObject.h>
+#include <BasicShader.h>
 
 using namespace std;
 using namespace sf;

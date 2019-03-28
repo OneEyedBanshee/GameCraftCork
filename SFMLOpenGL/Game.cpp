@@ -1,6 +1,7 @@
 #include <Game.h>
 #include <Cube.h>
 #include <Easing.h>
+#include <Model.h>
 
 // Helper to convert Number to String for HUD
 template <typename T>
@@ -11,12 +12,11 @@ string toString(T number)
 	return oss.str();
 }
 
-GLuint	vsid,		// Vertex Shader ID
-		fsid,		// Fragment Shader ID
-		progID,		// Program ID
-		vao = 0,	// Vertex Array ID
+GLuint	vao = 0,	// Vertex Array ID
 		vbo,		// Vertex Buffer ID
 		vib,		// Vertex Index Buffer
+		vertexbuffer,
+		uvbuffer,
 		to[1];		// Texture ID
 GLint	positionID,	// Position ID
 		colorID,	// Color ID
@@ -27,39 +27,45 @@ GLint	positionID,	// Position ID
 		x_offsetID, // X offset ID
 		y_offsetID,	// Y offset ID
 		z_offsetID;	// Z offset ID
-
 GLenum	error;		// OpenGL Error Code
-
 
 //Please see .//Assets//Textures// for more textures
 const string filename = ".//Assets//Textures//grid.tga";
+unsigned char* img_data;			// Image data
 
-int width;						// Width of texture
-int height;						// Height of texture
-int comp_count;					// Component of texture
+int		width;						// Width of texture
+int		height;						// Height of texture
+int		comp_count;					// Component of texture
 
-unsigned char* img_data;		// image data
+mat4	mvp, 
+		projection, 
+		view, 
+		model;	// Model View Projection
 
-mat4 mvp, projection, 
-		view, model;	// Model View Projection
+mat4	mvpPlayer, 
+		modelPlayer;
 
-mat4 mvpPlayer,
- modelPlayer;
+mat4	mvpObstacle,
+		modelObstacle;
 
-mat4 mvpObstacle,
-modelObstacle;
+mat4	mvpRamps, 
+		modelRamps;
 
-mat4 mvpRamps,
-modelRamps;
+mat4	mvpMovingobs, 
+		modelMovingobs;
 
-mat4 mvpMovingobs,
-modelMovingobs;
+mat4	mvpObjective,
+		modelObjective;
 
+//Fonts
+Font	font;
 
-mat4 mvpObjective,
-modelObjective;
+//Shaders
+BasicShader m_shader;
+BasicShader m_modelShader;
 
-Font font;						// Game font
+Model m_testmodel;
+Model m_testlego; 
 
 //Audio
 sf::SoundBuffer m_audioBuffer;
@@ -79,7 +85,6 @@ Game::Game(sf::ContextSettings settings) :
 	"Introduction to OpenGL Texturing", 
 	sf::Style::Default, 
 	settings)
-
 
 	//blocks are 2.0 wide
 {
@@ -102,8 +107,10 @@ Game::Game(sf::ContextSettings settings) :
 	{
 		game_object[i] = new GameObject();
 		game_object[i]->setPosition(vec3(xPosition, -2.8, 0.0f));
+		game_object[i]->setRotation(rand() % 4 * 1.5708f);
 		xPosition += 2.0f;
 	}
+
 	game_object[1] = new GameObject();
 	game_object[1]->setPosition(vec3(-4.0f, -2.8, 0.0f));
 	game_object[2] = new GameObject();
@@ -227,10 +234,8 @@ Game::~Game()
 {
 }
 
-
 void Game::run()
 {
-
 	initialize();
 	setUpcontent();
 	Event event;
@@ -247,10 +252,6 @@ void Game::run()
 #if (DEBUG >= 2)
 		DEBUG_MSG("Game running...");
 #endif
-		
-
-
-
 
 		while (window.pollEvent(event))
 		{
@@ -298,16 +299,8 @@ void Game::run()
 				// https://github.com/SFML/SFML/wiki/Tutorial:-Building-SFML-for-Android
 				// https://www.youtube.com/watch?v=n_JSi6ihDFs
 				// http://en.sfml-dev.org/forums/index.php?topic=8010.0
-				// 
-
-				
-			}
-
-			
-			
-	
-
-			
+				// 				
+			}			
 		}
 		update();
 		render();
@@ -317,12 +310,10 @@ void Game::run()
 	DEBUG_MSG("Calling Cleanup...");
 #endif
 	unload();
-
 }
 
 void Game::initialize()
-{
-	
+{	
 	x_offset = { 0.0f }, y_offset = { -2.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)
 	m_maxHeight = { playerObject->getPosition().y + 5.0f };
 	isRunning = true;
@@ -331,6 +322,10 @@ void Game::initialize()
 
 	if (!(!glewInit())) { DEBUG_MSG("glewInit() failed"); }
 
+	m_shader = BasicShader(".//Assets//Shaders//basicShader.vs", ".//Assets//Shaders//basicShader.fs");
+	m_modelShader = BasicShader(".//Assets//Shaders//modelShader.vs", ".//Assets//Shaders//modelShader.fs");
+	m_testlego = Model(".//Assets//Models//legoGround//ground.obj");
+	   
 	// Copy UV's to all faces
 	for (int i = 1; i < 6; i++)
 		memcpy(&uvs[i * 4 * 2], &uvs[0], 2 * 4 * sizeof(GLfloat));
@@ -351,99 +346,7 @@ void Game::initialize()
 
 	/*int countINDICES = game_object[0]->getIndexCount();*/
 	// Indices to be drawn
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * INDICES * sizeof(GLuint), indices, GL_STATIC_DRAW);
-
-	// NOTE: uniforms values must be used within Shader so that they 
-	// can be retreived
-	const char* vs_src =
-		"#version 400\n\r"
-		""
-		"in vec3 sv_position;"
-		"in vec4 sv_color;"
-		"in vec2 sv_uv;"
-		""
-		"out vec4 color;"
-		"out vec2 uv;"
-		""
-		"uniform mat4 sv_mvp;"
-		"uniform float sv_x_offset;"
-		"uniform float sv_y_offset;"
-		"uniform float sv_z_offset;"
-		""
-		"void main() {"
-		"	color = sv_color;"
-		"	uv = sv_uv;"
-		//"	gl_Position = vec4(sv_position, 1);"
-		"	gl_Position = sv_mvp * vec4(sv_position.x + sv_x_offset, sv_position.y + sv_y_offset, sv_position.z + sv_z_offset, 1 );"
-		"}"; //Vertex Shader Src
-
-	DEBUG_MSG("Setting Up Vertex Shader");
-
-	vsid = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vsid, 1, (const GLchar**)&vs_src, NULL);
-	glCompileShader(vsid);
-
-	// Check is Shader Compiled
-	glGetShaderiv(vsid, GL_COMPILE_STATUS, &isCompiled);
-
-	if (isCompiled == GL_TRUE) {
-		DEBUG_MSG("Vertex Shader Compiled");
-		isCompiled = GL_FALSE;
-	}
-	else
-	{
-		DEBUG_MSG("ERROR: Vertex Shader Compilation Error");
-	}
-
-	const char* fs_src =
-		"#version 400\n\r"
-		""
-		"uniform sampler2D f_texture;"
-		""
-		"in vec4 color;"
-		"in vec2 uv;"
-		""
-		"out vec4 fColor;"
-		""
-		"void main() {"
-		"	fColor = color - texture2D(f_texture, uv);"
-		""
-		"}"; //Fragment Shader Src
-
-	DEBUG_MSG("Setting Up Fragment Shader");
-
-	fsid = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fsid, 1, (const GLchar**)&fs_src, NULL);
-	glCompileShader(fsid);
-
-	// Check is Shader Compiled
-	glGetShaderiv(fsid, GL_COMPILE_STATUS, &isCompiled);
-
-	if (isCompiled == GL_TRUE) {
-		DEBUG_MSG("Fragment Shader Compiled");
-		isCompiled = GL_FALSE;
-	}
-	else
-	{
-		DEBUG_MSG("ERROR: Fragment Shader Compilation Error");
-	}
-
-	DEBUG_MSG("Setting Up and Linking Shader");
-	progID = glCreateProgram();
-	glAttachShader(progID, vsid);
-	glAttachShader(progID, fsid);
-	glLinkProgram(progID);
-
-	// Check is Shader Linked
-	glGetProgramiv(progID, GL_LINK_STATUS, &isLinked);
-
-	if (isLinked == 1) {
-		DEBUG_MSG("Shader Linked");
-	}
-	else
-	{
-		DEBUG_MSG("ERROR: Shader Link Error");
-	}
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * INDICES * sizeof(GLuint), indices, GL_STATIC_DRAW);		
 
 	// Set image data
 	// https://github.com/nothings/stb/blob/master/stb_image.h
@@ -538,7 +441,7 @@ void Game::initialize()
 
 void Game::update()
 {
-	std::cout << playerObject->getPosition().x << std::endl;
+	//std::cout << playerObject->getPosition().x << std::endl;
 	//function calls for the move , ramps,objective,player move 
 	//,obstacle move,camera, obstacle collisions
 	if (m_moveState == MoveStates::Stationary)
@@ -566,7 +469,7 @@ void Game::update()
 
 	switch (m_moveState)
 	{
-		//the initial state the not jumping state
+	//the initial state the not jumping state
 	case MoveStates::Stationary:
 		
 		//checks if the space bar is pressd and switchs the state to jumping
@@ -576,7 +479,7 @@ void Game::update()
 			if (sound_Loaded) { m_soundEffect.play(); }
 		}
 		break;
-		//jumping state
+	//jumping state
 	case MoveStates::Jumping:
 		//moves the player model up the screen
 		playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y + 0.01f, playerObject->getPosition().z));
@@ -602,8 +505,7 @@ void Game::update()
 	obstacleMove();
 	camera();
 	obstacleCollision();
-
-
+	
 #if (DEBUG >= 2)
 	DEBUG_MSG("Updating...");
 #endif
@@ -616,10 +518,6 @@ void Game::update()
 	mvpRamps = projection * view * modelRamps;
 	mvpMovingobs = projection * view * modelMovingobs;
 	mvpObjective = projection * view * modelObjective;
-
-
-
-
 }
 
 void Game::render()
@@ -635,7 +533,7 @@ void Game::render()
 	window.pushGLStates();
 
 	// Find mouse position using sf::Mouse
-	int x = Mouse::getPosition(window).x;
+	/*int x = Mouse::getPosition(window).x;
 	int y = Mouse::getPosition(window).y;
 
 	string hud = "Heads Up Display ["
@@ -643,14 +541,11 @@ void Game::render()
 		+ "]["
 		+ string(toString(y))
 		+ "]";
-
-	Text text(hud, font);
-
-	text.setFillColor(sf::Color(255, 255, 255, 170));
-	text.setPosition(50.f, 50.f);
-
 	
-	window.draw(text);
+	Text text(hud, font);
+	text.setFillColor(sf::Color(255, 255, 255, 170));
+	text.setPosition(50.f, 50.f);	
+	window.draw(text);*/
 
 	// Restore OpenGL render states
 	// https://www.sfml-dev.org/documentation/2.0/classsf_1_1RenderTarget.php#a8d1998464ccc54e789aaf990242b47f7
@@ -662,36 +557,36 @@ void Game::render()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vib);
 
 	// Use Progam on GPU
-	glUseProgram(progID);
+	m_shader.use();
 
 	// Find variables within the shader
 	// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGetAttribLocation.xml
-	positionID = glGetAttribLocation(progID, "sv_position");
+	positionID = glGetAttribLocation(m_shader.getID(), "sv_position");
 	if (positionID < 0) { DEBUG_MSG("positionID not found"); }
 
-	colorID = glGetAttribLocation(progID, "sv_color");
+	colorID = glGetAttribLocation(m_shader.getID(), "sv_color");
 	if (colorID < 0) { DEBUG_MSG("colorID not found"); }
 
-	uvID = glGetAttribLocation(progID, "sv_uv");
+	uvID = glGetAttribLocation(m_shader.getID(), "sv_uv");
 	if (uvID < 0) { DEBUG_MSG("uvID not found"); }
 
-	textureID = glGetUniformLocation(progID, "f_texture");
+	textureID = glGetUniformLocation(m_shader.getID(), "f_texture");
 	if (textureID < 0) { DEBUG_MSG("textureID not found"); }
 
-	mvpID = glGetUniformLocation(progID, "sv_mvp");
+	mvpID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
 	if (mvpID < 0) { DEBUG_MSG("mvpID not found"); }
 
 	//added this for the player mvp dont know if correct
-	mvpplayerID = glGetUniformLocation(progID, "sv_mvp");
+	mvpplayerID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
 	if (mvpplayerID < 0) { DEBUG_MSG("mvpID not found"); }
 
-	x_offsetID = glGetUniformLocation(progID, "sv_x_offset");
+	x_offsetID = glGetUniformLocation(m_shader.getID(), "sv_x_offset");
 	if (x_offsetID < 0) { DEBUG_MSG("x_offsetID not found"); }
 
-	y_offsetID = glGetUniformLocation(progID, "sv_y_offset");
+	y_offsetID = glGetUniformLocation(m_shader.getID(), "sv_y_offset");
 	if (y_offsetID < 0) { DEBUG_MSG("y_offsetID not found"); }
 
-	z_offsetID = glGetUniformLocation(progID, "sv_z_offset");
+	z_offsetID = glGetUniformLocation(m_shader.getID(), "sv_z_offset");
 	if (z_offsetID < 0) { DEBUG_MSG("z_offsetID not found"); };
 
 	// VBO Data....vertices, colors and UV's appended
@@ -709,8 +604,6 @@ void Game::render()
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(textureID, 0); // 0 .... 31
 
-
-
 	// Set pointers for each parameter (with appropriate starting positions)
 	// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
 	glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -720,25 +613,35 @@ void Game::render()
 	glEnableVertexAttribArray(positionID);
 	glEnableVertexAttribArray(colorID);
 	glEnableVertexAttribArray(uvID);
+
+
+	m_modelShader.use();
+	// view/projection transformations	
+	m_modelShader.setMat4("projection", projection);
+	m_modelShader.setMat4("view", view);
+
 	//run through a for loop to draw  cubes
 	for (int i = 0; i <100; i++)
 	{
-		glUniform1f(x_offsetID, game_object[i]->getPosition().x);
-		glUniform1f(y_offsetID, game_object[i]->getPosition().y);
-		glUniform1f(z_offsetID, game_object[i]->getPosition().z);
-	
-		// Draw Element Arrays
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		// render the loaded model
+		glm::mat4 model = glm::mat4(1.0f);		
+		//model = glm::rotate(model, game_object[i]->getRotation(), glm::vec3(0, 1, 0));		
+		model = glm::translate(model, glm::vec3(game_object[i]->getPosition().x, game_object[i]->getPosition().y, game_object[i]->getPosition().z)); // translate it down so it's at the center of the scene
+		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		m_modelShader.setMat4("model", model);
+		m_testlego.Draw(m_modelShader);
 	}
+
+	m_shader.use();
 	
 	//set up mvp for player block
 	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpPlayer[0][0]);
-
 	glUniform1f(x_offsetID, playerObject->getPosition().x);
 	glUniform1f(y_offsetID, playerObject->getPosition().y);
 	glUniform1f(y_offsetID, playerObject->getPosition().y);
 
 	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+
 	//set up mvp for obstacles blocks
 	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpObstacle[0][0]);
 	//run through a for loop to draw  cubes
@@ -750,7 +653,6 @@ void Game::render()
 
 		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
 	}
-
 
 	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpRamps[0][0]);
 	//run through a for loop to draw  cubes
@@ -784,7 +686,21 @@ void Game::render()
 
 		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
 	}
+	   	  		
+	
 
+	// render the loaded model
+	//glm::mat4 model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(0.0f, -4.0f, 0.0f)); // translate it down so it's at the center of the scene
+	//model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+	//m_modelShader.setMat4("model", model);
+	//m_testlego.Draw(m_modelShader);
+
+	//model = glm::mat4(1.0f);
+	//model = glm::translate(model, glm::vec3(0.0f, 4.0f, 0.0f)); // translate it down so it's at the center of the scene
+	//model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+	//m_modelShader.setMat4("model", model);
+	//m_testlego.Draw(m_modelShader);
 
 	
 	/*window.draw(playerRect);*/
@@ -794,6 +710,8 @@ void Game::render()
 	glDisableVertexAttribArray(positionID);
 	glDisableVertexAttribArray(colorID);
 	glDisableVertexAttribArray(uvID);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 
 	// Unbind Buffers with 0 (Resets OpenGL States...important step)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -814,38 +732,30 @@ void Game::unload()
 #if (DEBUG >= 2)
 	DEBUG_MSG("Cleaning up...");
 #endif
-	glDetachShader(progID, vsid);	// Shader could be used with more than one progID
-	glDetachShader(progID, fsid);	// ..
-	glDeleteShader(vsid);			// Delete Vertex Shader
-	glDeleteShader(fsid);			// Delete Fragment Shader
-	glDeleteProgram(progID);		// Delete Shader
+	//glDetachShader(progID, vsid);	// Shader could be used with more than one progID
+	//glDetachShader(progID, fsid);	// ..
+	//glDeleteShader(vsid);			// Delete Vertex Shader
+	//glDeleteShader(fsid);			// Delete Fragment Shader
+	//glDeleteProgram(progID);		// Delete Shader
 	glDeleteBuffers(1, &vbo);		// Delete Vertex Buffer
 	glDeleteBuffers(1, &vib);		// Delete Vertex Index Buffer
 	stbi_image_free(img_data);		// Free image stbi_image_free(..)
 }
 void Game::setUpcontent()
 {
-
-
-
 }
+
 void Game::obstacleCollision()
-{
-	/// <summary>
-	/// checks the collision between the player and obstacle 0
-	/// </summary>
+{	
+	// checks the collision between the player and obstacle 0	
 	if(playerObject->getPosition().x  + 1 >= obstacleObject[0]->getPosition().x -1  &&
 		obstacleObject[0]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
 		playerObject->getPosition().y + 1 >= obstacleObject[0]->getPosition().y - 1 &&
 		obstacleObject[0]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
-	{
-	
+	{	
 		playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
-
 	}
-	/// <summary>
-	/// checks the collision between the player and obstacle 1
-	/// </summary>
+	// checks the collision between the player and obstacle 1	
 	else if (playerObject->getPosition().x + 1 >= obstacleObject[1]->getPosition().x - 1 &&
 		obstacleObject[1]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
 		playerObject->getPosition().y + 1 >= obstacleObject[1]->getPosition().y - 1 &&
@@ -853,26 +763,20 @@ void Game::obstacleCollision()
 	{
 		playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
 	}
-	/// <summary>
-	/// checks the collision between the player and obstacle 2
-	/// </summary>
+	// checks the collision between the player and obstacle 2
 	else if (playerObject->getPosition().x + 1 >= obstacleObject[2]->getPosition().x - 1 &&
 		obstacleObject[2]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
 		playerObject->getPosition().y + 1 >= obstacleObject[2]->getPosition().y - 1 &&
 		obstacleObject[2]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 	{
 		playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
-	}
-
-
-	
+	}	
 }
+
 void Game::rampsCollision()
 {
-
 	for (int i = 0; i < 15; i++)
 	{
-
 		if (playerObject->getPosition().x + 1 >= rampsObjects[i]->getPosition().x - 1 &&
 			rampsObjects[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
 			playerObject->getPosition().y + 1 >= rampsObjects[i]->getPosition().y - 1 &&
@@ -886,33 +790,25 @@ void Game::rampsCollision()
 			m_moveState = MoveStates::Stationary;
 		}
 	}
-	
-
 }
+
 void Game::movingblockCollision()
 {
-
 	for (int i = 0; i < 5; i++)
-	{
-		/// <summary>
-		/// checks the collision between the player and moving obstacles 0
-		/// </summary>
+	{		
+		// checks the collision between the player and moving obstacles 0		
 		if (playerObject->getPosition().x + 1 >= movingobstacleObject[i]->getPosition().x - 1 &&
 			movingobstacleObject[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
 			playerObject->getPosition().y + 1 >= movingobstacleObject[i]->getPosition().y - 1 &&
 			movingobstacleObject[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 		{
-
 			playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
-
 		}
-	}
-  
+	}  
 }
+
 void Game::objectiveCollision()
 {
-
-
 	//loop for the objective
 	for (int i = 0; i < 2; i++)
 	{
@@ -924,27 +820,20 @@ void Game::objectiveCollision()
 		{
 			//set the position of the player
 			playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
-
 		}
 	}
-
 }
+
 void Game::camera()
 {
 	//it does the key presses for the view
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-	{
-		m_view = 1;
-	}
-	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-	{
-		m_view = 2;
-	}
-	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-	{
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))	
+		m_view = 1;	
+	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))	
+		m_view = 2;	
+	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))	
 		m_view = 3;
-	}
-
+	
 	if (m_view == 2)
 	{
 		view = lookAt(
@@ -952,32 +841,26 @@ void Game::camera()
 			vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z),		// Camera looking at player
 			vec3(0.0f, 1.0f, 0.0f)		// 0.0f, 1.0f, 0.0f Look Down and 0.0f, -1.0f, 0.0f Look Up
 		);
-
 	}
-	if (m_view == 1)
+	else if (m_view == 1)
 	{
 		view = lookAt(
 			vec3(playerObject->getPosition().x - x_offset, playerObject->getPosition().y - y_offset, playerObject->getPosition().z - z_offset),	// Camera (x,y,z), in World Space
 			vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z),		// Camera looking at player
 			vec3(0.0f, 1.0f, 0.0f)		// 0.0f, 1.0f, 0.0f Look Down and 0.0f, -1.0f, 0.0f Look Up
 		);
-
 	}
 
 	view = lookAt(
 		vec3(playerObject->getPosition().x - x_offset, playerObject->getPosition().y - y_offset, playerObject->getPosition().z - z_offset),	// Camera (x,y,z), in World Space
 		vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z),		// Camera looking at player
 		vec3(0.0f, 1.0f, 0.0f)
-	);
-
-
+	);	
 }
 void Game::obstacleMove()
 {
-	if (m_timer < 1500)
-	{
-		m_timer++;
-	}
+	if (m_timer < 1500)	
+		m_timer++;	
 
 	for (int i = 0; i < 5; i++)
 	{
@@ -1000,6 +883,7 @@ void Game::obstacleMove()
 				m_blockMove = AiMove::MoveDown;
 			}
 			break;
+
 		case AiMove::MoveDown:
 			//the timer is 1500 and is gretaer than the ground
 			if (m_timer == 1500 && obstacleObject[i]->getPosition().y >= -0.8f)
@@ -1015,31 +899,25 @@ void Game::obstacleMove()
 				//reset timer
 				m_timer = 0;
 			}
-
 			break;
-
 		}
 	}
 }
 void Game::playerMove()
 {
-	if (m_view == 2)
-	{
-		x_offset = { 10.0f }, y_offset = { -10.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)
-	}
+	if (m_view == 2)	
+		x_offset = { 10.0f }, y_offset = { -10.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)	
 
-	if (m_view == 1)
-	{
-		x_offset = { 0.0f }, y_offset = { -2.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)
-	}
+	if (m_view == 1)	
+		x_offset = { 0.0f }, y_offset = { -2.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)	
 
 	//if the d key is pressed
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 	{
 		//move the player model to the right
 		playerObject->setPosition(vec3(playerObject->getPosition().x + 0.01f, playerObject->getPosition().y, playerObject->getPosition().z));
-
 	}
+
 	//when the a is pressed move to the left
 	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 	{
@@ -1047,6 +925,4 @@ void Game::playerMove()
 		playerObject->setPosition(vec3(playerObject->getPosition().x - 0.01f, playerObject->getPosition().y, playerObject->getPosition().z));
 	}
 	//switch statement for the jumping states
-	
-
 }
