@@ -111,46 +111,46 @@ Game::Game(sf::ContextSettings settings) :
 		xPosition += 2.0f;
 	}
 
+	//Gaps in the floor, move them far away so they're not z fighting the start block
+	float farX = -1000.0f;
 	game_object[1] = new GameObject();
-	game_object[1]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[1]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[2] = new GameObject();
-	game_object[2]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[2]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[6] = new GameObject();
-	game_object[6]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[6]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[7] = new GameObject();
-	game_object[7]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[7]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[20] = new GameObject();
-	game_object[20]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[20]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[19] = new GameObject();
-	game_object[19]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[19]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[41] = new GameObject();
-	game_object[41]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[41]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[42] = new GameObject();
-	game_object[42]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[42]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[46] = new GameObject();
-	game_object[46]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[46]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[47] = new GameObject();
-	game_object[47]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[47]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[36] = new GameObject();
-	game_object[36]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[36]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[37] = new GameObject();
-	game_object[37]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[37]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[47] = new GameObject();
-	game_object[47]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[47]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[48] = new GameObject();
-	game_object[48]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[48]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[55] = new GameObject();
-	game_object[55]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[55]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[63] = new GameObject();
-	game_object[64]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[64]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[72] = new GameObject();
-	game_object[73]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[73]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[85] = new GameObject();
-	game_object[86]->setPosition(vec3(-4.0f, -2.8, 0.0f));
+	game_object[86]->setPosition(vec3(farX, -2.8, 0.0f));
 	game_object[91] = new GameObject();
-	game_object[91]->setPosition(vec3(-4.0f, -2.8, 0.0f));
-	
-
+	game_object[91]->setPosition(vec3(farX, -2.8, 0.0f));
 
 	//loop to set up the ojects ramp
 	for (int i = 0; i < 3; i++)
@@ -321,6 +321,8 @@ void Game::initialize()
 	GLint isLinked = 0;
 
 	if (!(!glewInit())) { DEBUG_MSG("glewInit() failed"); }
+
+	glClearColor(0.0f,0.777f,1.0f,1.0f);
 
 	m_shader = BasicShader(".//Assets//Shaders//basicShader.vs", ".//Assets//Shaders//basicShader.fs");
 	m_modelShader = BasicShader(".//Assets//Shaders//modelShader.vs", ".//Assets//Shaders//modelShader.fs");
@@ -624,10 +626,10 @@ void Game::render()
 	for (int i = 0; i <100; i++)
 	{
 		// render the loaded model
-		glm::mat4 model = glm::mat4(1.0f);		
-		//model = glm::rotate(model, game_object[i]->getRotation(), glm::vec3(0, 1, 0));		
+		glm::mat4 model = glm::mat4(1.0f);					
 		model = glm::translate(model, glm::vec3(game_object[i]->getPosition().x, game_object[i]->getPosition().y, game_object[i]->getPosition().z)); // translate it down so it's at the center of the scene
 		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		model = glm::rotate(model, game_object[i]->getRotation(), glm::vec3(0, 1, 0));
 		m_modelShader.setMat4("model", model);
 		m_testlego.Draw(m_modelShader);
 	}
