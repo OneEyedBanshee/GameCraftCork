@@ -37,12 +37,14 @@ public:
 	Game(sf::ContextSettings settings);
 	~Game();
 	void run();
+	void update();
+	void render();
 	
 private:
 	GameObject* game_object[100];
 	GameObject* playerObject;
 	GameObject* obstacleObject[5];
-	GameObject* movingobstacleObject[5];
+	GameObject* spikeObjects[5];
 	GameObject* rampsObjects[15];
 	GameObject* objective[2];
 	RenderWindow window;
@@ -70,9 +72,7 @@ private:
 	bool isRunning = false;
 	int m_timer{ 0 };
 	//all functions fo the game
-	void initialize();
-	void update();
-	void render();
+	void initialize();	
 	void unload();
 	void setUpcontent();
 	void obstacleCollision();

@@ -66,6 +66,11 @@ BasicShader m_modelShader;
 
 Model m_testmodel;
 Model m_testlego; 
+Model m_spike;
+Model m_movingHazard;
+Model m_floatingPlatform;
+Model m_player;
+const float PLAYER_WIDTH = 0.6f;
 
 //Audio
 sf::SoundBuffer m_audioBuffer;
@@ -157,6 +162,7 @@ Game::Game(sf::ContextSettings settings) :
 	{
 		rampsObjects[i] = new GameObject();
 		rampsObjects[i]->setPosition(vec3(xpositionRamps, ypositionRamps, 0.0f));
+		rampsObjects[i]->setRotation(rand() % 4 * 1.5708f);
 		xpositionRamps += 2.0f;
 		ypositionRamps += 2.0f;
 	}
@@ -169,6 +175,7 @@ Game::Game(sf::ContextSettings settings) :
 	{
 		rampsObjects[i] = new GameObject();
 		rampsObjects[i]->setPosition(vec3(xpositionRamps1, ypositionRamps1, 0.0f));
+		rampsObjects[i]->setRotation(rand() % 4 * 1.5708f);
 		xpositionRamps1 += 3.0f;
 		ypositionRamps1 += 3.0f;
 	}
@@ -180,6 +187,7 @@ Game::Game(sf::ContextSettings settings) :
 	{
 		rampsObjects[i] = new GameObject();
 		rampsObjects[i]->setPosition(vec3(xpositionRamps2, ypositionRamps2, 0.0f));
+		rampsObjects[i]->setRotation(rand() % 4 * 1.5708f);
 		xpositionRamps1 += 2.5f;
 		ypositionRamps1 += 2.5f;
 	}
@@ -190,6 +198,7 @@ Game::Game(sf::ContextSettings settings) :
 
 		rampsObjects[i] = new GameObject();
 		rampsObjects[i]->setPosition(vec3(xpositionRamps3, ypositionRamps3, 0.0f));
+		rampsObjects[i]->setRotation(rand() % 4 * 1.5708f);
 		xpositionRamps3 += 3.0f;
 		ypositionRamps3 += 3.1f;
 	}
@@ -205,6 +214,7 @@ Game::Game(sf::ContextSettings settings) :
 
 		obstacleObject[i] = new GameObject();
 		obstacleObject[i]->setPosition(vec3(obstacleXPosition, -0.8f, 0.0f));
+		obstacleObject[i]->setRotation(rand() % 4 * 1.5708f);
 		obstacleXPosition += 25.0f;
 
 	}
@@ -213,8 +223,8 @@ Game::Game(sf::ContextSettings settings) :
 	for (int i = 0; i < 6; i++)
 	{
 
-		movingobstacleObject[i] = new GameObject();
-		movingobstacleObject[i]->setPosition(vec3(posmoveX, -0.8f, 0.0f));
+		spikeObjects[i] = new GameObject();
+		spikeObjects[i]->setPosition(vec3(posmoveX, -0.8f, 0.0f));
 		posmoveX += 30.0f;
 		
 	}
@@ -246,6 +256,7 @@ void Game::run()
 
 	if (sound_Loaded) { m_soundEffect.setBuffer(m_audioBuffer); }
 	if (music_Loaded) { m_music.play(); }	
+	m_music.setVolume(50.0f);
 
 	while (isRunning) {
 
@@ -327,6 +338,10 @@ void Game::initialize()
 	m_shader = BasicShader(".//Assets//Shaders//basicShader.vs", ".//Assets//Shaders//basicShader.fs");
 	m_modelShader = BasicShader(".//Assets//Shaders//modelShader.vs", ".//Assets//Shaders//modelShader.fs");
 	m_testlego = Model(".//Assets//Models//legoGround//ground.obj");
+	m_spike = Model(".//Assets//Models//legoSpike//spike.obj");
+	m_movingHazard = Model(".//Assets//Models//legoMovingHazard//movingHazard.obj");
+	m_player = Model(".//Assets//Models//legoPlayer//LEGO_Man.obj");
+	m_floatingPlatform = Model(".//Assets//Models//legoFloatingPlatform//floatingPlatform.obj");
 	   
 	// Copy UV's to all faces
 	for (int i = 1; i < 6; i++)
@@ -442,7 +457,7 @@ void Game::initialize()
 }
 
 void Game::update()
-{
+{	
 	//std::cout << playerObject->getPosition().x << std::endl;
 	//function calls for the move , ramps,objective,player move 
 	//,obstacle move,camera, obstacle collisions
@@ -455,12 +470,12 @@ void Game::update()
 	{
 		for (int j = 0; j < 16; j++)
 		{
-			if (playerObject->getPosition().x + 1 >= game_object[i]->getPosition().x - 1 &&
-				game_object[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+			if (playerObject->getPosition().x + PLAYER_WIDTH >= game_object[i]->getPosition().x - PLAYER_WIDTH &&
+				game_object[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 				playerObject->getPosition().y + 1 >= game_object[i]->getPosition().y - 1 &&
 				game_object[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1 ||
-				playerObject->getPosition().x + 1 >= rampsObjects[j]->getPosition().x - 1 &&
-				rampsObjects[j]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+				playerObject->getPosition().x + PLAYER_WIDTH >= rampsObjects[j]->getPosition().x - PLAYER_WIDTH &&
+				rampsObjects[j]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 				playerObject->getPosition().y + 1 >= rampsObjects[j]->getPosition().y - 1 &&
 				rampsObjects[j]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 			{
@@ -634,49 +649,59 @@ void Game::render()
 		m_testlego.Draw(m_modelShader);
 	}
 
-	m_shader.use();
+	//m_shader.use();
 	
 	//set up mvp for player block
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpPlayer[0][0]);
+	/*glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpPlayer[0][0]);
 	glUniform1f(x_offsetID, playerObject->getPosition().x);
 	glUniform1f(y_offsetID, playerObject->getPosition().y);
 	glUniform1f(y_offsetID, playerObject->getPosition().y);
 
-	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);*/
 
-	//set up mvp for obstacles blocks
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpObstacle[0][0]);
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z)); // translate it down so it's at the center of the scene
+	model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+	model = glm::rotate(model, 1.5708f, glm::vec3(0, 1, 0));
+	m_modelShader.setMat4("model", model);
+	m_player.Draw(m_modelShader);
+
+	//m_modelShader.use();
 	//run through a for loop to draw  cubes
 	for (int i = 0; i < 5; i++)
 	{
-		glUniform1f(x_offsetID, obstacleObject[i]->getPosition().x);
-		glUniform1f(y_offsetID, obstacleObject[i]->getPosition().y);
-		glUniform1f(y_offsetID, obstacleObject[i]->getPosition().y);
-
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		// render the loaded model
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y, obstacleObject[i]->getPosition().z)); // translate it down so it's at the center of the scene
+		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		model = glm::rotate(model, obstacleObject[i]->getRotation(), glm::vec3(0, 1, 0));
+		m_modelShader.setMat4("model", model);
+		m_movingHazard.Draw(m_modelShader);
 	}
-
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpRamps[0][0]);
+	
 	//run through a for loop to draw  cubes
 	for (int i = 0; i < 15; i++)
 	{
-		glUniform1f(x_offsetID, rampsObjects[i]->getPosition().x);
-		glUniform1f(y_offsetID, rampsObjects[i]->getPosition().y);
-		glUniform1f(y_offsetID, rampsObjects[i]->getPosition().y);
-
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(rampsObjects[i]->getPosition().x, rampsObjects[i]->getPosition().y, rampsObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
+		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		model = glm::rotate(model, rampsObjects[i]->getRotation(), glm::vec3(0, 1, 0));
+		m_modelShader.setMat4("model", model);
+		m_floatingPlatform.Draw(m_modelShader);
 	}
-	//set up mvp for moving blocks
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpMovingobs[0][0]);
+
 	//run through a for loop to draw  cubes
 	for (int i = 0; i < 5; i++)
 	{
-		glUniform1f(x_offsetID, movingobstacleObject[i]->getPosition().x);
-		glUniform1f(y_offsetID, movingobstacleObject[i]->getPosition().y);
-		glUniform1f(y_offsetID, movingobstacleObject[i]->getPosition().y);
-
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		// render the loaded model
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(spikeObjects[i]->getPosition().x, spikeObjects[i]->getPosition().y, spikeObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
+		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+		m_modelShader.setMat4("model", model);
+		m_spike.Draw(m_modelShader);
 	}
+
+	m_shader.use();
 	//set the mvp of the objective
 	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpObjective[0][0]);
 	//loop the through the objectives
@@ -688,22 +713,6 @@ void Game::render()
 
 		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
 	}
-	   	  		
-	
-
-	// render the loaded model
-	//glm::mat4 model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(0.0f, -4.0f, 0.0f)); // translate it down so it's at the center of the scene
-	//model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-	//m_modelShader.setMat4("model", model);
-	//m_testlego.Draw(m_modelShader);
-
-	//model = glm::mat4(1.0f);
-	//model = glm::translate(model, glm::vec3(0.0f, 4.0f, 0.0f)); // translate it down so it's at the center of the scene
-	//model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-	//m_modelShader.setMat4("model", model);
-	//m_testlego.Draw(m_modelShader);
-
 	
 	/*window.draw(playerRect);*/
 	window.display();
@@ -750,24 +759,24 @@ void Game::setUpcontent()
 void Game::obstacleCollision()
 {	
 	// checks the collision between the player and obstacle 0	
-	if(playerObject->getPosition().x  + 1 >= obstacleObject[0]->getPosition().x -1  &&
-		obstacleObject[0]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+	if(playerObject->getPosition().x  + PLAYER_WIDTH >= obstacleObject[0]->getPosition().x - PLAYER_WIDTH &&
+		obstacleObject[0]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 		playerObject->getPosition().y + 1 >= obstacleObject[0]->getPosition().y - 1 &&
 		obstacleObject[0]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 	{	
 		playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
 	}
 	// checks the collision between the player and obstacle 1	
-	else if (playerObject->getPosition().x + 1 >= obstacleObject[1]->getPosition().x - 1 &&
-		obstacleObject[1]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+	else if (playerObject->getPosition().x + PLAYER_WIDTH >= obstacleObject[1]->getPosition().x - PLAYER_WIDTH &&
+		obstacleObject[1]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 		playerObject->getPosition().y + 1 >= obstacleObject[1]->getPosition().y - 1 &&
 		obstacleObject[1]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 	{
 		playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
 	}
 	// checks the collision between the player and obstacle 2
-	else if (playerObject->getPosition().x + 1 >= obstacleObject[2]->getPosition().x - 1 &&
-		obstacleObject[2]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+	else if (playerObject->getPosition().x + PLAYER_WIDTH >= obstacleObject[2]->getPosition().x - PLAYER_WIDTH &&
+		obstacleObject[2]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 		playerObject->getPosition().y + 1 >= obstacleObject[2]->getPosition().y - 1 &&
 		obstacleObject[2]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 	{
@@ -779,8 +788,8 @@ void Game::rampsCollision()
 {
 	for (int i = 0; i < 15; i++)
 	{
-		if (playerObject->getPosition().x + 1 >= rampsObjects[i]->getPosition().x - 1 &&
-			rampsObjects[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+		if (playerObject->getPosition().x + PLAYER_WIDTH >= rampsObjects[i]->getPosition().x - PLAYER_WIDTH &&
+			rampsObjects[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 			playerObject->getPosition().y + 1 >= rampsObjects[i]->getPosition().y - 1 &&
 			rampsObjects[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 		{
@@ -799,10 +808,10 @@ void Game::movingblockCollision()
 	for (int i = 0; i < 5; i++)
 	{		
 		// checks the collision between the player and moving obstacles 0		
-		if (playerObject->getPosition().x + 1 >= movingobstacleObject[i]->getPosition().x - 1 &&
-			movingobstacleObject[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
-			playerObject->getPosition().y + 1 >= movingobstacleObject[i]->getPosition().y - 1 &&
-			movingobstacleObject[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
+		if (playerObject->getPosition().x + PLAYER_WIDTH >= spikeObjects[i]->getPosition().x - PLAYER_WIDTH &&
+			spikeObjects[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
+			playerObject->getPosition().y + 1 >= spikeObjects[i]->getPosition().y - 1 &&
+			spikeObjects[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 		{
 			playerObject->setPosition(vec3(-4.0f, -0.8f, 0.0f));
 		}
@@ -815,8 +824,8 @@ void Game::objectiveCollision()
 	for (int i = 0; i < 2; i++)
 	{
 		//collision between player and objective
-		if (playerObject->getPosition().x + 1 >= objective[i]->getPosition().x - 1 &&
-			objective[i]->getPosition().x + 1 >= playerObject->getPosition().x - 1 &&
+		if (playerObject->getPosition().x + PLAYER_WIDTH >= objective[i]->getPosition().x - PLAYER_WIDTH &&
+			objective[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
 			playerObject->getPosition().y + 1 >= objective[i]->getPosition().y - 1 &&
 			objective[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
 		{
