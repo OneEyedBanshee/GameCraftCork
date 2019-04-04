@@ -82,7 +82,7 @@ private:
 	void movingblockCollision();
 	void objectiveCollision();
 	void camera();
-	void obstacleMove();
+	void obstacleMove(float dt);
 	void playerMove(float dt);
 	enum AiMove
 	{
@@ -98,8 +98,6 @@ private:
 
 	}
 	m_moveState;
-
-
 };
 
 #endif  // ! GAME_H

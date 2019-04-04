@@ -196,7 +196,6 @@ Game::Game(sf::ContextSettings settings) :
 	float ypositionRamps3{ 5.5f };
 	for (int i = 10; i < 15; i++)
 	{
-
 		rampsObjects[i] = new GameObject();
 		rampsObjects[i]->setPosition(vec3(xpositionRamps3, ypositionRamps3, 0.0f));
 		rampsObjects[i]->setRotation(rand() % 4 * 1.5708f);
@@ -212,7 +211,6 @@ Game::Game(sf::ContextSettings settings) :
 	/// </summary>
 	for (int i = 0; i < 5; i++)
 	{
-
 		obstacleObject[i] = new GameObject();
 		obstacleObject[i]->setPosition(vec3(obstacleXPosition, -0.8f, 0.0f));
 		obstacleObject[i]->setRotation(rand() % 4 * 1.5708f);
@@ -223,7 +221,6 @@ Game::Game(sf::ContextSettings settings) :
 	float posmoveX{ 27.5f };
 	for (int i = 0; i < 6; i++)
 	{
-
 		spikeObjects[i] = new GameObject();
 		spikeObjects[i]->setPosition(vec3(posmoveX, -0.8f, 0.0f));
 		posmoveX += 30.0f;
@@ -259,11 +256,16 @@ void Game::run()
 	if (music_Loaded) { m_music.play(); }	
 	m_music.setVolume(50.0f);
 
+	//creation of threads
 	std::thread updateThread(&Game::update, this);
-	window.setActive(false);
+
+	//release context so it can be used by multiple instances of the thread
+	window.setActive(false); 
 	std::thread renderThread(&Game::render, this);
 
 	while (isRunning) {
+
+	std::cout << "Main thread with ID: " << std::this_thread::get_id << std::endl;
 
 #if (DEBUG >= 2)
 		DEBUG_MSG("Game running...");
@@ -275,25 +277,20 @@ void Game::run()
 			{
 				isRunning = false;
 			}
-
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 			{
 				// Set Model Rotation
 				if (!animate)
 				{
 					animate = true;
-					
-
 				}
 			}
-
 			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 			{
 				// Set Model Rotation
 				if (!animate)
 				{
-					animate = true;
-				
+					animate = true;				
 				}
 
 				// https://www.sfml-dev.org/documentation/2.0/classsf_1_1Clock.php
@@ -318,8 +315,8 @@ void Game::run()
 				// 				
 			}			
 		}
-		//update();
-		//render();
+		//update(); //now handled by thread
+		//render(); //now handled by thread
 	}
 
 #if (DEBUG >= 2)
@@ -342,6 +339,7 @@ void Game::initialize()
 
 	glClearColor(0.0f,0.777f,1.0f,1.0f);
 
+	//load models, had to be delayed because glew needed to init
 	m_shader = BasicShader(".//Assets//Shaders//basicShader.vs", ".//Assets//Shaders//basicShader.fs");
 	m_modelShader = BasicShader(".//Assets//Shaders//modelShader.vs", ".//Assets//Shaders//modelShader.fs");
 	m_testlego = Model(".//Assets//Models//legoGround//ground.obj");
@@ -468,8 +466,8 @@ void Game::update()
 	sf::Clock clock;
 	while (isRunning)
 	{
+		std::cout << "Thread with ID: " << std::this_thread::get_id << " updating game" << std::endl;
 		sf::Time dt = clock.restart();
-		std::cout << playerObject->getPosition().x << std::endl;
 		//function calls for the move , ramps,objective,player move 
 		//,obstacle move,camera, obstacle collisions
 		if (m_moveState == MoveStates::Stationary)
@@ -530,7 +528,7 @@ void Game::update()
 		movingblockCollision();
 		rampsCollision();
 		objectiveCollision();
-		obstacleMove();
+		obstacleMove(dt.asSeconds());
 		camera();
 		obstacleCollision();
 
@@ -546,8 +544,7 @@ void Game::update()
 		mvpRamps = projection * view * modelRamps;
 		mvpMovingobs = projection * view * modelMovingobs;
 		mvpObjective = projection * view * modelObjective;
-	}
-	
+	}	
 }
 
 void Game::render()
@@ -557,6 +554,7 @@ void Game::render()
 #endif	
 	while (isRunning)
 	{
+		std::cout << "Thread with ID: " << std::this_thread::get_id << " rendering game" << std::endl;
 		//renderLock.lock();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -646,13 +644,12 @@ void Game::render()
 		glEnableVertexAttribArray(colorID);
 		glEnableVertexAttribArray(uvID);
 
-
 		m_modelShader.use();
 		// view/projection transformations	
 		m_modelShader.setMat4("projection", projection);
 		m_modelShader.setMat4("view", view);
 
-		//run through a for loop to draw  cubes
+		//run through a for loop to draw ground models
 		for (int i = 0; i < 100; i++)
 		{
 			// render the loaded model
@@ -671,7 +668,7 @@ void Game::render()
 		m_modelShader.setMat4("model", model);
 		m_player.Draw(m_modelShader);
 
-		//run through a for loop to draw  cubes
+		//run through a for loop to draw the moving obstacles
 		for (int i = 0; i < 5; i++)
 		{
 			// render the loaded model
@@ -683,7 +680,7 @@ void Game::render()
 			m_movingHazard.Draw(m_modelShader);
 		}
 
-		//run through a for loop to draw  cubes
+		//run through a for loop to draw the floating platforms
 		for (int i = 0; i < 15; i++)
 		{
 			glm::mat4 model = glm::mat4(1.0f);
@@ -694,7 +691,7 @@ void Game::render()
 			m_floatingPlatform.Draw(m_modelShader);
 		}
 
-		//run through a for loop to draw  cubes
+		//run through a for loop to draw the spike obstacles
 		for (int i = 0; i < 5; i++)
 		{
 			// render the loaded model
@@ -874,7 +871,7 @@ void Game::camera()
 		vec3(0.0f, 1.0f, 0.0f)
 	);	
 }
-void Game::obstacleMove()
+void Game::obstacleMove(float dt)
 {
 	if (m_timer < 1500)	
 		m_timer++;	
@@ -889,13 +886,13 @@ void Game::obstacleMove()
 			if (obstacleObject[i]->getPosition().y <= 1.8f)
 			{
 				//moves up the screen 
-				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y + 0.01f, obstacleObject[i]->getPosition().z));
+				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y + 5.0f * dt, obstacleObject[i]->getPosition().z));
 			}
 			//if the obstacle is greater than 1.8
 			if (obstacleObject[i]->getPosition().y >= 1.8f)
 			{
 				//moves down  the screen
-				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y - 0.01f, obstacleObject[i]->getPosition().z));
+				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y - 5.0f * dt, obstacleObject[i]->getPosition().z));
 				//switch to the move down screen 
 				m_blockMove = AiMove::MoveDown;
 			}
@@ -906,7 +903,7 @@ void Game::obstacleMove()
 			if (m_timer == 1500 && obstacleObject[i]->getPosition().y >= -0.8f)
 			{
 				//move down
-				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y - 0.01f, obstacleObject[i]->getPosition().z));
+				obstacleObject[i]->setPosition(vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y - 5.0f * dt, obstacleObject[i]->getPosition().z));
 			}
 			//when at the ground 
 			else if (obstacleObject[i]->getPosition().y <= -0.8f)
