@@ -10,12 +10,5 @@ int main(void)
 
 	// Create a reference to the game and run
 	Game& game = Game(settings);	
-
-	sf::Thread updateThread(&Game::update, &game);
-	sf::Thread renderThread(&Game::render, &game);
-
-	updateThread.launch();
-	renderThread.launch();
-
 	game.run();	
 }

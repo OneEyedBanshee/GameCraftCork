@@ -78,6 +78,7 @@ sf::Music		m_music;
 sf::Sound		m_soundEffect;
 bool			music_Loaded = true;
 bool			sound_Loaded = true;
+Mutex			renderLock;
 
 Game::Game() : 
 	window(VideoMode(800, 600), 
@@ -258,6 +259,10 @@ void Game::run()
 	if (music_Loaded) { m_music.play(); }	
 	m_music.setVolume(50.0f);
 
+	std::thread updateThread(&Game::update, this);
+	window.setActive(false);
+	std::thread renderThread(&Game::render, this);
+
 	while (isRunning) {
 
 #if (DEBUG >= 2)
@@ -313,14 +318,16 @@ void Game::run()
 				// 				
 			}			
 		}
-		update();
-		render();
+		//update();
+		//render();
 	}
 
 #if (DEBUG >= 2)
 	DEBUG_MSG("Calling Cleanup...");
 #endif
 	unload();
+	updateThread.join();
+	renderThread.join();
 }
 
 void Game::initialize()
@@ -458,283 +465,282 @@ void Game::initialize()
 
 void Game::update()
 {	
-	//std::cout << playerObject->getPosition().x << std::endl;
-	//function calls for the move , ramps,objective,player move 
-	//,obstacle move,camera, obstacle collisions
-	if (m_moveState == MoveStates::Stationary)
+	sf::Clock clock;
+	while (isRunning)
 	{
-		m_maxHeight = { playerObject->getPosition().y + 5.0f };
-		playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y - 0.01f, playerObject->getPosition().z));
-	}
-	for (int i = 0; i < 100; i++)
-	{
-		for (int j = 0; j < 16; j++)
+		sf::Time dt = clock.restart();
+		std::cout << playerObject->getPosition().x << std::endl;
+		//function calls for the move , ramps,objective,player move 
+		//,obstacle move,camera, obstacle collisions
+		if (m_moveState == MoveStates::Stationary)
 		{
-			if (playerObject->getPosition().x + PLAYER_WIDTH >= game_object[i]->getPosition().x - PLAYER_WIDTH &&
-				game_object[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
-				playerObject->getPosition().y + 1 >= game_object[i]->getPosition().y - 1 &&
-				game_object[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1 ||
-				playerObject->getPosition().x + PLAYER_WIDTH >= rampsObjects[j]->getPosition().x - PLAYER_WIDTH &&
-				rampsObjects[j]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
-				playerObject->getPosition().y + 1 >= rampsObjects[j]->getPosition().y - 1 &&
-				rampsObjects[j]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
+			m_maxHeight = { playerObject->getPosition().y + 5.0f };
+			playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y - 5.f * dt.asSeconds(), playerObject->getPosition().z));
+		}
+		for (int i = 0; i < 100; i++)
+		{
+			for (int j = 0; j < 16; j++)
 			{
-				playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y + 0.01f, playerObject->getPosition().z));
+				if (playerObject->getPosition().x + PLAYER_WIDTH >= game_object[i]->getPosition().x - PLAYER_WIDTH &&
+					game_object[i]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
+					playerObject->getPosition().y + 1 >= game_object[i]->getPosition().y - 1 &&
+					game_object[i]->getPosition().y + 1 >= playerObject->getPosition().y - 1 ||
+					playerObject->getPosition().x + PLAYER_WIDTH >= rampsObjects[j]->getPosition().x - PLAYER_WIDTH &&
+					rampsObjects[j]->getPosition().x + PLAYER_WIDTH >= playerObject->getPosition().x - PLAYER_WIDTH &&
+					playerObject->getPosition().y + 1 >= rampsObjects[j]->getPosition().y - 1 &&
+					rampsObjects[j]->getPosition().y + 1 >= playerObject->getPosition().y - 1)
+				{
+					playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y + 5.f * dt.asSeconds(), playerObject->getPosition().z));
+				}
 			}
 		}
-	}
 
-	switch (m_moveState)
-	{
-	//the initial state the not jumping state
-	case MoveStates::Stationary:
-		
-		//checks if the space bar is pressd and switchs the state to jumping
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+		switch (m_moveState)
 		{
-			m_moveState = MoveStates::Jumping;
-			if (sound_Loaded) { m_soundEffect.play(); }
-		}
-		break;
-	//jumping state
-	case MoveStates::Jumping:
-		//moves the player model up the screen
-		playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y + 0.01f, playerObject->getPosition().z));
+			//the initial state the not jumping state
+		case MoveStates::Stationary:
 
-		//if the player model is greater than or equal to 0.5
-		if (playerObject->getPosition().y >= m_maxHeight)
-		{
-			//then set the state to falling
-			m_moveState = MoveStates::Falling;
-		}
-		break;
-	case MoveStates::Falling:
+			//checks if the space bar is pressd and switchs the state to jumping
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+			{
+				m_moveState = MoveStates::Jumping;
+				if (sound_Loaded) { m_soundEffect.play(); }
+			}
+			break;
+			//jumping state
+		case MoveStates::Jumping:
+			//moves the player model up the screen
+			playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y + 5.f * dt.asSeconds(), playerObject->getPosition().z));
 
-		playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y - 0.01f, playerObject->getPosition().z));
-	
-		m_moveState = MoveStates::Stationary;
-		break;
-	}
-	playerMove();
-	movingblockCollision();
-	rampsCollision();
-	objectiveCollision();
-	obstacleMove();
-	camera();
-	obstacleCollision();
-	
+			//if the player model is greater than or equal to 0.5
+			if (playerObject->getPosition().y >= m_maxHeight)
+			{
+				//then set the state to falling
+				m_moveState = MoveStates::Falling;
+			}
+			break;
+		case MoveStates::Falling:
+
+			playerObject->setPosition(vec3(playerObject->getPosition().x, playerObject->getPosition().y - 5.f * dt.asSeconds(), playerObject->getPosition().z));
+
+			m_moveState = MoveStates::Stationary;
+			break;
+		}
+		playerMove(dt.asSeconds());
+		movingblockCollision();
+		rampsCollision();
+		objectiveCollision();
+		obstacleMove();
+		camera();
+		obstacleCollision();
+
 #if (DEBUG >= 2)
-	DEBUG_MSG("Updating...");
+		DEBUG_MSG("Updating...");
 #endif
-	// Update Model View Projection
-	// For mutiple objects (cubes) create multiple models
-	// To alter Camera modify view & projection
-	mvp = projection * view * model;
-	mvpPlayer = projection * view * modelPlayer;
-	mvpObstacle = projection * view * modelObstacle;
-	mvpRamps = projection * view * modelRamps;
-	mvpMovingobs = projection * view * modelMovingobs;
-	mvpObjective = projection * view * modelObjective;
+		// Update Model View Projection
+		// For mutiple objects (cubes) create multiple models
+		// To alter Camera modify view & projection
+		mvp = projection * view * model;
+		mvpPlayer = projection * view * modelPlayer;
+		mvpObstacle = projection * view * modelObstacle;
+		mvpRamps = projection * view * modelRamps;
+		mvpMovingobs = projection * view * modelMovingobs;
+		mvpObjective = projection * view * modelObjective;
+	}
+	
 }
 
 void Game::render()
 {
 #if (DEBUG >= 2)
 	DEBUG_MSG("Render Loop...");
-#endif
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	// Save current OpenGL render states
-	// https://www.sfml-dev.org/documentation/2.0/classsf_1_1RenderTarget.php#a8d1998464ccc54e789aaf990242b47f7
-	window.pushGLStates();
-
-	// Find mouse position using sf::Mouse
-	/*int x = Mouse::getPosition(window).x;
-	int y = Mouse::getPosition(window).y;
-
-	string hud = "Heads Up Display ["
-		+ string(toString(x))
-		+ "]["
-		+ string(toString(y))
-		+ "]";
-	
-	Text text(hud, font);
-	text.setFillColor(sf::Color(255, 255, 255, 170));
-	text.setPosition(50.f, 50.f);	
-	window.draw(text);*/
-
-	// Restore OpenGL render states
-	// https://www.sfml-dev.org/documentation/2.0/classsf_1_1RenderTarget.php#a8d1998464ccc54e789aaf990242b47f7
-
-	window.popGLStates();
-
-	// Rebind Buffers and then set SubData
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vib);
-
-	// Use Progam on GPU
-	m_shader.use();
-
-	// Find variables within the shader
-	// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGetAttribLocation.xml
-	positionID = glGetAttribLocation(m_shader.getID(), "sv_position");
-	if (positionID < 0) { DEBUG_MSG("positionID not found"); }
-
-	colorID = glGetAttribLocation(m_shader.getID(), "sv_color");
-	if (colorID < 0) { DEBUG_MSG("colorID not found"); }
-
-	uvID = glGetAttribLocation(m_shader.getID(), "sv_uv");
-	if (uvID < 0) { DEBUG_MSG("uvID not found"); }
-
-	textureID = glGetUniformLocation(m_shader.getID(), "f_texture");
-	if (textureID < 0) { DEBUG_MSG("textureID not found"); }
-
-	mvpID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
-	if (mvpID < 0) { DEBUG_MSG("mvpID not found"); }
-
-	//added this for the player mvp dont know if correct
-	mvpplayerID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
-	if (mvpplayerID < 0) { DEBUG_MSG("mvpID not found"); }
-
-	x_offsetID = glGetUniformLocation(m_shader.getID(), "sv_x_offset");
-	if (x_offsetID < 0) { DEBUG_MSG("x_offsetID not found"); }
-
-	y_offsetID = glGetUniformLocation(m_shader.getID(), "sv_y_offset");
-	if (y_offsetID < 0) { DEBUG_MSG("y_offsetID not found"); }
-
-	z_offsetID = glGetUniformLocation(m_shader.getID(), "sv_z_offset");
-	if (z_offsetID < 0) { DEBUG_MSG("z_offsetID not found"); };
-
-	// VBO Data....vertices, colors and UV's appended
-	// Add the Vertices for all your GameOjects, Colors and UVS
-	
-  	glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), game_object[0]->getVertex());
-
-	//glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), vertices);
-	glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLORS * sizeof(GLfloat), colors);
-	glBufferSubData(GL_ARRAY_BUFFER, ((3 * VERTICES) + (4 * COLORS)) * sizeof(GLfloat), 2 * UVS * sizeof(GLfloat), uvs);
-
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
-
-	// Set Active Texture .... 32 GL_TEXTURE0 .... GL_TEXTURE31
-	glActiveTexture(GL_TEXTURE0);
-	glUniform1i(textureID, 0); // 0 .... 31
-
-	// Set pointers for each parameter (with appropriate starting positions)
-	// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
-	glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glVertexAttribPointer(colorID, 4, GL_FLOAT, GL_FALSE, 0, (VOID*)(3 * VERTICES * sizeof(GLfloat)));
-	glVertexAttribPointer(uvID, 2, GL_FLOAT, GL_FALSE, 0, (VOID*)(((3 * VERTICES) + (4 * COLORS)) * sizeof(GLfloat)));
-	// Enable Arrays
-	glEnableVertexAttribArray(positionID);
-	glEnableVertexAttribArray(colorID);
-	glEnableVertexAttribArray(uvID);
-
-
-	m_modelShader.use();
-	// view/projection transformations	
-	m_modelShader.setMat4("projection", projection);
-	m_modelShader.setMat4("view", view);
-
-	//run through a for loop to draw  cubes
-	for (int i = 0; i <100; i++)
+#endif	
+	while (isRunning)
 	{
-		// render the loaded model
-		glm::mat4 model = glm::mat4(1.0f);					
-		model = glm::translate(model, glm::vec3(game_object[i]->getPosition().x, game_object[i]->getPosition().y, game_object[i]->getPosition().z)); // translate it down so it's at the center of the scene
-		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-		model = glm::rotate(model, game_object[i]->getRotation(), glm::vec3(0, 1, 0));
-		m_modelShader.setMat4("model", model);
-		m_testlego.Draw(m_modelShader);
-	}
+		//renderLock.lock();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//m_shader.use();
-	
-	//set up mvp for player block
-	/*glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpPlayer[0][0]);
-	glUniform1f(x_offsetID, playerObject->getPosition().x);
-	glUniform1f(y_offsetID, playerObject->getPosition().y);
-	glUniform1f(y_offsetID, playerObject->getPosition().y);
+		// Save current OpenGL render states
+		// https://www.sfml-dev.org/documentation/2.0/classsf_1_1RenderTarget.php#a8d1998464ccc54e789aaf990242b47f7
+		window.pushGLStates();
 
-	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);*/
+		// Find mouse position using sf::Mouse
+		/*int x = Mouse::getPosition(window).x;
+		int y = Mouse::getPosition(window).y;
 
-	glm::mat4 model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z)); // translate it down so it's at the center of the scene
-	model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-	model = glm::rotate(model, 1.5708f, glm::vec3(0, 1, 0));
-	m_modelShader.setMat4("model", model);
-	m_player.Draw(m_modelShader);
+		string hud = "Heads Up Display ["
+			+ string(toString(x))
+			+ "]["
+			+ string(toString(y))
+			+ "]";
 
-	//m_modelShader.use();
-	//run through a for loop to draw  cubes
-	for (int i = 0; i < 5; i++)
-	{
-		// render the loaded model
+		Text text(hud, font);
+		text.setFillColor(sf::Color(255, 255, 255, 170));
+		text.setPosition(50.f, 50.f);
+		window.draw(text);*/
+
+		// Restore OpenGL render states
+		// https://www.sfml-dev.org/documentation/2.0/classsf_1_1RenderTarget.php#a8d1998464ccc54e789aaf990242b47f7
+
+		window.popGLStates();
+
+		// Rebind Buffers and then set SubData
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vib);
+
+		// Use Progam on GPU
+		m_shader.use();
+
+		// Find variables within the shader
+		// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGetAttribLocation.xml
+		positionID = glGetAttribLocation(m_shader.getID(), "sv_position");
+		if (positionID < 0) { DEBUG_MSG("positionID not found"); }
+
+		colorID = glGetAttribLocation(m_shader.getID(), "sv_color");
+		if (colorID < 0) { DEBUG_MSG("colorID not found"); }
+
+		uvID = glGetAttribLocation(m_shader.getID(), "sv_uv");
+		if (uvID < 0) { DEBUG_MSG("uvID not found"); }
+
+		textureID = glGetUniformLocation(m_shader.getID(), "f_texture");
+		if (textureID < 0) { DEBUG_MSG("textureID not found"); }
+
+		mvpID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
+		if (mvpID < 0) { DEBUG_MSG("mvpID not found"); }
+
+		//added this for the player mvp dont know if correct
+		mvpplayerID = glGetUniformLocation(m_shader.getID(), "sv_mvp");
+		if (mvpplayerID < 0) { DEBUG_MSG("mvpID not found"); }
+
+		x_offsetID = glGetUniformLocation(m_shader.getID(), "sv_x_offset");
+		if (x_offsetID < 0) { DEBUG_MSG("x_offsetID not found"); }
+
+		y_offsetID = glGetUniformLocation(m_shader.getID(), "sv_y_offset");
+		if (y_offsetID < 0) { DEBUG_MSG("y_offsetID not found"); }
+
+		z_offsetID = glGetUniformLocation(m_shader.getID(), "sv_z_offset");
+		if (z_offsetID < 0) { DEBUG_MSG("z_offsetID not found"); };
+
+		// VBO Data....vertices, colors and UV's appended
+		// Add the Vertices for all your GameOjects, Colors and UVS
+
+		glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), game_object[0]->getVertex());
+
+		//glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), vertices);
+		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLORS * sizeof(GLfloat), colors);
+		glBufferSubData(GL_ARRAY_BUFFER, ((3 * VERTICES) + (4 * COLORS)) * sizeof(GLfloat), 2 * UVS * sizeof(GLfloat), uvs);
+
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvp[0][0]);
+
+		// Set Active Texture .... 32 GL_TEXTURE0 .... GL_TEXTURE31
+		glActiveTexture(GL_TEXTURE0);
+		glUniform1i(textureID, 0); // 0 .... 31
+
+		// Set pointers for each parameter (with appropriate starting positions)
+		// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
+		glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glVertexAttribPointer(colorID, 4, GL_FLOAT, GL_FALSE, 0, (VOID*)(3 * VERTICES * sizeof(GLfloat)));
+		glVertexAttribPointer(uvID, 2, GL_FLOAT, GL_FALSE, 0, (VOID*)(((3 * VERTICES) + (4 * COLORS)) * sizeof(GLfloat)));
+		// Enable Arrays
+		glEnableVertexAttribArray(positionID);
+		glEnableVertexAttribArray(colorID);
+		glEnableVertexAttribArray(uvID);
+
+
+		m_modelShader.use();
+		// view/projection transformations	
+		m_modelShader.setMat4("projection", projection);
+		m_modelShader.setMat4("view", view);
+
+		//run through a for loop to draw  cubes
+		for (int i = 0; i < 100; i++)
+		{
+			// render the loaded model
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(game_object[i]->getPosition().x, game_object[i]->getPosition().y, game_object[i]->getPosition().z)); // translate it down so it's at the center of the scene
+			model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+			model = glm::rotate(model, game_object[i]->getRotation(), glm::vec3(0, 1, 0));
+			m_modelShader.setMat4("model", model);
+			m_testlego.Draw(m_modelShader);
+		}
+
 		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y, obstacleObject[i]->getPosition().z)); // translate it down so it's at the center of the scene
+		model = glm::translate(model, glm::vec3(playerObject->getPosition().x, playerObject->getPosition().y, playerObject->getPosition().z)); // translate it down so it's at the center of the scene
 		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-		model = glm::rotate(model, obstacleObject[i]->getRotation(), glm::vec3(0, 1, 0));
+		model = glm::rotate(model, 1.5708f, glm::vec3(0, 1, 0));
 		m_modelShader.setMat4("model", model);
-		m_movingHazard.Draw(m_modelShader);
-	}
-	
-	//run through a for loop to draw  cubes
-	for (int i = 0; i < 15; i++)
-	{
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(rampsObjects[i]->getPosition().x, rampsObjects[i]->getPosition().y, rampsObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
-		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-		model = glm::rotate(model, rampsObjects[i]->getRotation(), glm::vec3(0, 1, 0));
-		m_modelShader.setMat4("model", model);
-		m_floatingPlatform.Draw(m_modelShader);
-	}
+		m_player.Draw(m_modelShader);
 
-	//run through a for loop to draw  cubes
-	for (int i = 0; i < 5; i++)
-	{
-		// render the loaded model
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(spikeObjects[i]->getPosition().x, spikeObjects[i]->getPosition().y, spikeObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
-		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-		m_modelShader.setMat4("model", model);
-		m_spike.Draw(m_modelShader);
-	}
+		//run through a for loop to draw  cubes
+		for (int i = 0; i < 5; i++)
+		{
+			// render the loaded model
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(obstacleObject[i]->getPosition().x, obstacleObject[i]->getPosition().y, obstacleObject[i]->getPosition().z)); // translate it down so it's at the center of the scene
+			model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+			model = glm::rotate(model, obstacleObject[i]->getRotation(), glm::vec3(0, 1, 0));
+			m_modelShader.setMat4("model", model);
+			m_movingHazard.Draw(m_modelShader);
+		}
 
-	m_shader.use();
-	//set the mvp of the objective
-	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpObjective[0][0]);
-	//loop the through the objectives
-	for (int i = 0; i <2; i++)
-	{
-		glUniform1f(x_offsetID, objective[i]->getPosition().x);
-		glUniform1f(y_offsetID, objective[i]->getPosition().y);
-		glUniform1f(y_offsetID, objective[i]->getPosition().y);
+		//run through a for loop to draw  cubes
+		for (int i = 0; i < 15; i++)
+		{
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(rampsObjects[i]->getPosition().x, rampsObjects[i]->getPosition().y, rampsObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
+			model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+			model = glm::rotate(model, rampsObjects[i]->getRotation(), glm::vec3(0, 1, 0));
+			m_modelShader.setMat4("model", model);
+			m_floatingPlatform.Draw(m_modelShader);
+		}
 
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
-	}
-	
-	/*window.draw(playerRect);*/
-	window.display();
+		//run through a for loop to draw  cubes
+		for (int i = 0; i < 5; i++)
+		{
+			// render the loaded model
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(spikeObjects[i]->getPosition().x, spikeObjects[i]->getPosition().y, spikeObjects[i]->getPosition().z)); // translate it down so it's at the center of the scene
+			model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+			m_modelShader.setMat4("model", model);
+			m_spike.Draw(m_modelShader);
+		}
 
-	// Disable Arrays
-	glDisableVertexAttribArray(positionID);
-	glDisableVertexAttribArray(colorID);
-	glDisableVertexAttribArray(uvID);
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
+		m_shader.use();
+		//set the mvp of the objective
+		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &mvpObjective[0][0]);
+		//loop the through the objectives
+		for (int i = 0; i < 2; i++)
+		{
+			glUniform1f(x_offsetID, objective[i]->getPosition().x);
+			glUniform1f(y_offsetID, objective[i]->getPosition().y);
+			glUniform1f(y_offsetID, objective[i]->getPosition().y);
 
-	// Unbind Buffers with 0 (Resets OpenGL States...important step)
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		}
 
-	// Reset the Shader Program to Use
-	glUseProgram(0);
+		/*window.draw(playerRect);*/
+		window.display();
 
-	// Check for OpenGL Error code
-	error = glGetError();
-	if (error != GL_NO_ERROR) {
-		DEBUG_MSG(error);
+		// Disable Arrays
+		glDisableVertexAttribArray(positionID);
+		glDisableVertexAttribArray(colorID);
+		glDisableVertexAttribArray(uvID);
+		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
+
+		// Unbind Buffers with 0 (Resets OpenGL States...important step)
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+		// Reset the Shader Program to Use
+		glUseProgram(0);
+
+		// Check for OpenGL Error code
+		error = glGetError();
+		if (error != GL_NO_ERROR) {
+			DEBUG_MSG(error);
+		}
+		//renderLock.unlock();
 	}
 }
 
@@ -914,7 +920,7 @@ void Game::obstacleMove()
 		}
 	}
 }
-void Game::playerMove()
+void Game::playerMove(float dt)
 {
 	if (m_view == 2)	
 		x_offset = { 10.0f }, y_offset = { -10.0f }, z_offset = { -10.0f }; // offset on screen (Vertex Shader)	
@@ -926,14 +932,14 @@ void Game::playerMove()
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 	{
 		//move the player model to the right
-		playerObject->setPosition(vec3(playerObject->getPosition().x + 0.01f, playerObject->getPosition().y, playerObject->getPosition().z));
+		playerObject->setPosition(vec3(playerObject->getPosition().x + 5.f * dt, playerObject->getPosition().y, playerObject->getPosition().z));
 	}
 
 	//when the a is pressed move to the left
 	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 	{
 		//move the player model to the left
-		playerObject->setPosition(vec3(playerObject->getPosition().x - 0.01f, playerObject->getPosition().y, playerObject->getPosition().z));
+		playerObject->setPosition(vec3(playerObject->getPosition().x - 5.f * dt, playerObject->getPosition().y, playerObject->getPosition().z));
 	}
 	//switch statement for the jumping states
 }

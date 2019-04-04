@@ -26,6 +26,8 @@
 #include <GameObject.h>
 #include <BasicShader.h>
 
+#include <thread>
+
 using namespace std;
 using namespace sf;
 using namespace glm;
@@ -81,7 +83,7 @@ private:
 	void objectiveCollision();
 	void camera();
 	void obstacleMove();
-	void playerMove();
+	void playerMove(float dt);
 	enum AiMove
 	{
 		MoveUp,
